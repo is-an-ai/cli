@@ -1,0 +1,23 @@
+{
+  "name": "is-an-ai",
+  "version": "0.1.0",
+  "description": "CLI for registering and managing is-an.ai subdomains",
+  "type": "module",
+  "bin": {
+    "is-an-ai": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["dns", "subdomain", "ai", "is-an-ai", "cli"],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

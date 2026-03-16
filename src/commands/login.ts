@@ -1,7 +1,7 @@
 import { saveConfig } from "../lib/config.js";
 import { exchangeGithubToken } from "../lib/api-client.js";
 
-const GITHUB_CLIENT_ID = "Ov23liLeafE91OxyFclH"; // is-an.ai OAuth App
+const GITHUB_CLIENT_ID = "Ov23li3wivu1lGpQUdi5"; // is-an.ai OAuth App
 const DEVICE_CODE_URL = "https://github.com/login/device/code";
 const TOKEN_URL = "https://github.com/login/oauth/access_token";
 

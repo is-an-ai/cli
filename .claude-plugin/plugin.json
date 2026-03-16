@@ -1,0 +1,8 @@
+{
+  "name": "is-an-ai",
+  "description": "Register and manage free .is-an.ai subdomains for AI projects. Check availability, register domains with DNS records, update, and delete — all from your terminal.",
+  "author": {
+    "name": "is-an.ai",
+    "email": "dohyun682@gmail.com"
+  }
+}

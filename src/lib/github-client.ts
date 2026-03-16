@@ -62,17 +62,39 @@ export async function getUser(token: string): Promise<GitHubUser> {
   return ghRequest(token, "/user");
 }
 
-export async function ensureFork(token: string): Promise<string> {
-  const user = await getUser(token);
-
-  // Check if fork exists
+/**
+ * Determine the repo owner to use for creating branches.
+ * If the user has push access to upstream, use upstream directly.
+ * Otherwise, ensure a fork exists and return the fork owner.
+ */
+export async function resolveRepoOwner(token: string): Promise<string> {
+  // Check if user has push access to upstream
   try {
-    await ghRequest(token, `/repos/${user.login}/${UPSTREAM_REPO}`);
-    return user.login;
+    const repo = await ghRequest<{ permissions?: { push?: boolean } }>(
+      token, `/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}`
+    );
+    if (repo.permissions?.push) {
+      return UPSTREAM_OWNER;
+    }
   } catch {
-    // Fork doesn't exist, create it
+    // No access, need fork
   }
 
+  const user = await getUser(token);
+
+  // Check if fork exists and is actually a fork of upstream
+  try {
+    const repo = await ghRequest<{ fork: boolean; parent?: { full_name: string } }>(
+      token, `/repos/${user.login}/${UPSTREAM_REPO}`
+    );
+    if (repo.fork && repo.parent?.full_name === `${UPSTREAM_OWNER}/${UPSTREAM_REPO}`) {
+      return user.login;
+    }
+  } catch {
+    // Fork doesn't exist
+  }
+
+  // Create fork
   await ghRequest<GitHubFork>(token, `/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/forks`, {
     method: "POST",
     body: {},
@@ -82,8 +104,8 @@ export async function ensureFork(token: string): Promise<string> {
   for (let i = 0; i < 10; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     try {
-      await ghRequest(token, `/repos/${user.login}/${UPSTREAM_REPO}`);
-      return user.login;
+      const repo = await ghRequest<{ fork: boolean }>(token, `/repos/${user.login}/${UPSTREAM_REPO}`);
+      if (repo.fork) return user.login;
     } catch {
       // Not ready yet
     }
@@ -154,20 +176,33 @@ async function deleteFile(
 
 async function createPR(
   token: string,
-  forkOwner: string,
+  repoOwner: string,
   branch: string,
   title: string,
   body: string
 ): Promise<GitHubPR> {
+  // If pushing to upstream directly, head is just the branch name
+  // If pushing to a fork, head is "forkOwner:branch"
+  const head = repoOwner === UPSTREAM_OWNER ? branch : `${repoOwner}:${branch}`;
   return ghRequest(token, `/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/pulls`, {
     method: "POST",
-    body: {
-      title,
-      body,
-      head: `${forkOwner}:${branch}`,
-      base: "main",
-    },
+    body: { title, body, head, base: "main" },
   });
+}
+
+async function syncAndGetSha(token: string, repoOwner: string): Promise<string> {
+  // Sync fork with upstream (only needed for forks)
+  if (repoOwner !== UPSTREAM_OWNER) {
+    try {
+      await ghRequest(token, `/repos/${repoOwner}/${UPSTREAM_REPO}/merge-upstream`, {
+        method: "POST",
+        body: { branch: "main" },
+      });
+    } catch {
+      // Ignore if already up to date
+    }
+  }
+  return getMainSha(token, repoOwner);
 }
 
 export async function getPRStatus(token: string, prNumber: number): Promise<GitHubPR> {
@@ -181,29 +216,17 @@ export async function createRecordPR(
   name: string,
   record: RecordFile
 ): Promise<{ prUrl: string; prNumber: number }> {
-  const forkOwner = await ensureFork(token);
-  const mainSha = await getMainSha(token, UPSTREAM_OWNER);
+  const repoOwner = await resolveRepoOwner(token);
   const branch = `add-${name}-${Date.now()}`;
   const filePath = `records/${name}.json`;
 
-  // Sync fork's main with upstream
-  try {
-    await ghRequest(token, `/repos/${forkOwner}/${UPSTREAM_REPO}/merge-upstream`, {
-      method: "POST",
-      body: { branch: "main" },
-    });
-  } catch {
-    // Ignore if already up to date
-  }
-
-  const forkMainSha = await getMainSha(token, forkOwner);
-  await createBranch(token, forkOwner, branch, forkMainSha);
+  const mainSha = await syncAndGetSha(token, repoOwner);
+  await createBranch(token, repoOwner, branch, mainSha);
 
   const content = JSON.stringify(record, null, 3) + "\n";
-  await createOrUpdateFile(token, forkOwner, filePath, content, `Add ${name}.is-an.ai`, branch);
+  await createOrUpdateFile(token, repoOwner, filePath, content, `Add ${name}.is-an.ai`, branch);
 
-  const pr = await createPR(token, forkOwner, branch, `Add ${name}.is-an.ai`, `Register subdomain \`${name}.is-an.ai\``);
-
+  const pr = await createPR(token, repoOwner, branch, `Add ${name}.is-an.ai`, `Register subdomain \`${name}.is-an.ai\``);
   return { prUrl: pr.html_url, prNumber: pr.number };
 }
 
@@ -212,32 +235,20 @@ export async function updateRecordPR(
   name: string,
   record: RecordFile
 ): Promise<{ prUrl: string; prNumber: number }> {
-  const forkOwner = await ensureFork(token);
+  const repoOwner = await resolveRepoOwner(token);
   const branch = `update-${name}-${Date.now()}`;
   const filePath = `records/${name}.json`;
 
-  // Get existing file SHA from upstream
-  const existing = await getFileContent(token, UPSTREAM_OWNER, filePath, "main");
+  const mainSha = await syncAndGetSha(token, repoOwner);
+  await createBranch(token, repoOwner, branch, mainSha);
+
+  const existing = await getFileContent(token, repoOwner, filePath, branch);
   if (!existing) throw new Error(`Subdomain "${name}" not found in repository`);
 
-  // Sync fork
-  try {
-    await ghRequest(token, `/repos/${forkOwner}/${UPSTREAM_REPO}/merge-upstream`, {
-      method: "POST",
-      body: { branch: "main" },
-    });
-  } catch { /* ignore */ }
-
-  const forkMainSha = await getMainSha(token, forkOwner);
-  await createBranch(token, forkOwner, branch, forkMainSha);
-
-  // Get file SHA on the fork's new branch (same as upstream after sync)
-  const forkFile = await getFileContent(token, forkOwner, filePath, branch);
   const content = JSON.stringify(record, null, 3) + "\n";
-  await createOrUpdateFile(token, forkOwner, filePath, content, `Update ${name}.is-an.ai`, branch, forkFile?.sha);
+  await createOrUpdateFile(token, repoOwner, filePath, content, `Update ${name}.is-an.ai`, branch, existing.sha);
 
-  const pr = await createPR(token, forkOwner, branch, `Update ${name}.is-an.ai`, `Update subdomain \`${name}.is-an.ai\``);
-
+  const pr = await createPR(token, repoOwner, branch, `Update ${name}.is-an.ai`, `Update subdomain \`${name}.is-an.ai\``);
   return { prUrl: pr.html_url, prNumber: pr.number };
 }
 
@@ -245,27 +256,18 @@ export async function deleteRecordPR(
   token: string,
   name: string
 ): Promise<{ prUrl: string; prNumber: number }> {
-  const forkOwner = await ensureFork(token);
+  const repoOwner = await resolveRepoOwner(token);
   const branch = `delete-${name}-${Date.now()}`;
   const filePath = `records/${name}.json`;
 
-  // Sync fork
-  try {
-    await ghRequest(token, `/repos/${forkOwner}/${UPSTREAM_REPO}/merge-upstream`, {
-      method: "POST",
-      body: { branch: "main" },
-    });
-  } catch { /* ignore */ }
+  const mainSha = await syncAndGetSha(token, repoOwner);
+  await createBranch(token, repoOwner, branch, mainSha);
 
-  const forkMainSha = await getMainSha(token, forkOwner);
-  await createBranch(token, forkOwner, branch, forkMainSha);
+  const existing = await getFileContent(token, repoOwner, filePath, branch);
+  if (!existing) throw new Error(`Subdomain "${name}" not found in repository`);
 
-  const forkFile = await getFileContent(token, forkOwner, filePath, branch);
-  if (!forkFile) throw new Error(`Subdomain "${name}" not found in repository`);
+  await deleteFile(token, repoOwner, filePath, `Delete ${name}.is-an.ai`, branch, existing.sha);
 
-  await deleteFile(token, forkOwner, filePath, `Delete ${name}.is-an.ai`, branch, forkFile.sha);
-
-  const pr = await createPR(token, forkOwner, branch, `Delete ${name}.is-an.ai`, `Delete subdomain \`${name}.is-an.ai\``);
-
+  const pr = await createPR(token, repoOwner, branch, `Delete ${name}.is-an.ai`, `Delete subdomain \`${name}.is-an.ai\``);
   return { prUrl: pr.html_url, prNumber: pr.number };
 }

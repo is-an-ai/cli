@@ -1,5 +1,5 @@
 import { resolveAuth, type AuthMode } from "../lib/auth.js";
-import { createSubdomain } from "../lib/api-client.js";
+import { checkAvailability, createSubdomain } from "../lib/api-client.js";
 import { createRecordPR, getUser, getPRStatus } from "../lib/github-client.js";
 import type { DNSRecord, RecordFile } from "../types.js";
 
@@ -16,6 +16,14 @@ export async function register(name: string, options: RegisterOptions): Promise<
     type: options.type.toUpperCase() as DNSRecord["type"],
     value: options.value,
   };
+
+  // Check availability first
+  const availability = await checkAvailability(name);
+  if (!availability.available) {
+    console.error(`✗ ${name}.is-an.ai is not available${availability.error ? `: ${availability.error}` : ""}`);
+    process.exitCode = 1;
+    return;
+  }
 
   const auth = resolveAuth(options.mode);
 

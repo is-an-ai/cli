@@ -24,6 +24,9 @@ npx is-an-ai check my-project
 
 # Register a subdomain
 npx is-an-ai register my-project -t CNAME -v my-project.vercel.app
+
+# Deploy a static site
+npx is-an-ai deploy my-project ./dist
 ```
 
 ## Commands
@@ -34,6 +37,9 @@ npx is-an-ai register my-project -t CNAME -v my-project.vercel.app
 | `register <name>` | Register a new subdomain |
 | `update <name>` | Update an existing subdomain |
 | `delete <name>` | Delete a subdomain |
+| `deploy <name> [dir]` | Deploy static files to a subdomain |
+| `hosting <name>` | Show hosting status |
+| `undeploy <name>` | Remove hosting |
 | `list` | List your subdomains (requires login) |
 | `login` | Authenticate with GitHub |
 | `logout` | Clear stored credentials |
@@ -77,6 +83,27 @@ npx is-an-ai register my-app -t TXT -v "v=spf1 include:_spf.google.com ~all"
 npx is-an-ai register my-app -t AAAA -v 2001:db8::1
 ```
 
+## Static Site Hosting
+
+Deploy any static site or SPA to `<name>.is-an.ai`:
+
+```bash
+# React / Vite
+npm run build && npx is-an-ai deploy my-app ./dist
+
+# Next.js (static export)
+npm run build && npx is-an-ai deploy my-app ./out
+
+# Plain HTML
+npx is-an-ai deploy my-app ./
+```
+
+SPA routing is supported — all paths fall back to `index.html`.
+
+The first deploy automatically registers the subdomain. Subsequent deploys update the files in place.
+
+**Limits:** 50MB total size, 1000 files max.
+
 ## Options
 
 ```bash
@@ -92,7 +119,11 @@ npx is-an-ai register <name> [options]
 
 This CLI is available as a plugin for AI coding agents:
 
-- **Claude Code**: `/plugin install is-an-ai/cli`
+- **Claude Code**:
+  ```bash
+  /plugin marketplace add is-an-ai/cli
+  /plugin install is-an-ai
+  ```
 - **OpenClaw**: `openclaw plugins install github:is-an-ai/cli`
 
 ## Links

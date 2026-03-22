@@ -2,7 +2,11 @@
   "id": "is-an-ai",
   "name": "is-an.ai",
   "version": "0.1.0",
-  "description": "Register and manage free .is-an.ai subdomains for AI projects. Check availability, register domains with DNS records, update, and delete.",
+  "description": "Register and manage free .is-an.ai subdomains for AI projects. Check availability, register domains, deploy static sites, and more.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false
+  },
   "skills": ["./skills/register-domain"],
   "install": {
     "npmSpec": "is-an-ai",

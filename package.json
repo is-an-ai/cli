@@ -1,6 +1,6 @@
 {
   "name": "is-an-ai",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "CLI for registering and managing is-an.ai subdomains",
   "type": "module",
   "bin": {
@@ -10,11 +10,12 @@
     "dist",
     "README.md",
     "openclaw.plugin.json",
+    "openclaw-entry.js",
     "skills"
   ],
   "openclaw": {
     "extensions": [
-      "./openclaw.plugin.json"
+      "./openclaw-entry.js"
     ]
   },
   "scripts": {

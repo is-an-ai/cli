@@ -7,7 +7,7 @@
     "type": "object",
     "additionalProperties": false
   },
-  "skills": ["./skills/register-domain"],
+  "skills": ["./skills/register-domain", "./skills/deploy-site"],
   "install": {
     "npmSpec": "is-an-ai",
     "defaultChoice": "npm"

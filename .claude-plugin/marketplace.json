@@ -1,11 +1,15 @@
 {
   "name": "is-an-ai",
   "description": "Plugins for is-an.ai — free subdomains for AI projects",
+  "owner": {
+    "name": "is-an.ai",
+    "email": "dohyun682@gmail.com"
+  },
   "plugins": [
     {
       "name": "is-an-ai",
       "description": "Register and manage free .is-an.ai subdomains for AI projects. Check availability, register domains with DNS records, deploy static sites, and more.",
-      "source": "."
+      "source": "./"
     }
   ]
 }

@@ -9,6 +9,9 @@ import { list } from "./commands/list.js";
 import { register } from "./commands/register.js";
 import { update } from "./commands/update.js";
 import { del } from "./commands/delete.js";
+import { deploy } from "./commands/deploy.js";
+import { hosting } from "./commands/hosting.js";
+import { undeploy } from "./commands/undeploy.js";
 import type { AuthMode } from "./lib/auth.js";
 
 const program = new Command();
@@ -75,6 +78,23 @@ program
   .action(wrap((name: string, opts: any) =>
     del(name, opts))
   );
+
+program
+  .command("deploy <name> [directory]")
+  .description("Deploy static files to a subdomain")
+  .action(wrap((name: string, directory?: string) =>
+    deploy(name, directory))
+  );
+
+program
+  .command("hosting <name>")
+  .description("Show hosting status for a subdomain")
+  .action(wrap(hosting));
+
+program
+  .command("undeploy <name>")
+  .description("Remove hosting for a subdomain")
+  .action(wrap(undeploy));
 
 program.parse();
 

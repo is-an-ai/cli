@@ -33,3 +33,18 @@ export interface Subdomain {
   record: DNSRecord[];
   ownerId: string;
 }
+
+export interface HostingResponse {
+  subdomain: string;
+  url: string;
+  fileCount: number;
+  totalSize: number;
+}
+
+export interface HostingStatus {
+  subdomain: string;
+  url: string;
+  fileCount: number;
+  totalSize: number;
+  lastDeployedAt: string;
+}

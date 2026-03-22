@@ -1,6 +1,6 @@
 {
   "name": "is-an-ai",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CLI for registering and managing is-an.ai subdomains",
   "type": "module",
   "bin": {
@@ -8,8 +8,15 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "openclaw.plugin.json",
+    "skills"
   ],
+  "openclaw": {
+    "extensions": [
+      "./openclaw.plugin.json"
+    ]
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
